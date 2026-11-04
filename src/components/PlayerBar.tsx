@@ -20,6 +20,7 @@ export function PlayerBar() {
   const queued = usePlayer((s) => s.records.length);
   const { next, prev, nextRecord, setMode, toggleShuffle, stop } = usePlayer.getState();
   const [videoOpen, setVideoOpen] = useState(true);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -65,7 +66,7 @@ export function PlayerBar() {
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-50 h-[var(--player-h)] border-t border-zinc-800 bg-zinc-950/95 backdrop-blur">
-        <div className="mx-auto flex h-full max-w-7xl items-center gap-3 px-4">
+        <div className="relative mx-auto flex h-full max-w-7xl items-center gap-2 px-3 sm:gap-3 sm:px-4">
           {r?.image || l?.thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={r?.image || l?.thumb || ""} alt="" className="h-12 w-12 shrink-0 rounded object-cover" />
@@ -80,6 +81,7 @@ export function PlayerBar() {
             <div className="truncate text-xs text-zinc-400">
               {l && (
                 <>
+                  <span className="font-semibold text-amber-300 sm:hidden">{formatPrice(l.price)} · </span>
                   {l.artist} – {l.title}
                   {mode === "all" && r && r.videos.length > 1 && (
                     <span className="ml-1 text-zinc-500">
@@ -124,7 +126,13 @@ export function PlayerBar() {
             <IconButton label="Next record (shift+→)" onClick={nextRecord}>⏩</IconButton>
           </div>
 
-          <div className="hidden shrink-0 items-center gap-1 lg:flex">
+          <div className="lg:hidden">
+            <IconButton label="More options" onClick={() => setMoreOpen((v) => !v)}>⋯</IconButton>
+          </div>
+          {/* Secondary controls: inline on desktop, a popover above the bar on smaller screens. */}
+          <div
+            className={`${moreOpen ? "flex" : "hidden"} absolute bottom-full right-3 mb-2 flex-wrap items-center gap-1 rounded-lg border border-zinc-800 bg-zinc-950 p-2 lg:static lg:mb-0 lg:flex lg:border-0 lg:bg-transparent lg:p-0`}
+          >
             <Toggle on={mode === "all"} onClick={() => setMode(mode === "all" ? "one" : "all")}>
               {mode === "all" ? "All tracks" : "1 per record"}
             </Toggle>
@@ -135,7 +143,16 @@ export function PlayerBar() {
               {videoOpen ? "Shrink video" : "Grow video"}
             </Toggle>
             <span className="ml-1 text-[11px] text-zinc-500">{queued} in queue</span>
-            <IconButton label="Close player" onClick={() => { playerControls.player?.pauseVideo(); stop(); }}>✕</IconButton>
+            <IconButton
+              label="Close player"
+              onClick={() => {
+                playerControls.player?.pauseVideo();
+                setMoreOpen(false);
+                stop();
+              }}
+            >
+              ✕
+            </IconButton>
           </div>
         </div>
       </div>

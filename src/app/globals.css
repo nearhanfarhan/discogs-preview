@@ -9,7 +9,3 @@ body {
   background: #09090b;
   color: #e4e4e7;
 }
-
-@media (min-width: 1024px) {
-  details.lg\:open > summary { display: none; }
-}

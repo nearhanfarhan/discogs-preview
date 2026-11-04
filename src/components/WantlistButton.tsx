@@ -9,7 +9,7 @@ export function WantlistButton({ releaseId, compact }: { releaseId: number; comp
   const pending = useAccount((s) => s.pending.has(releaseId));
   const toggleWant = useAccount((s) => s.toggleWant);
 
-  const base = "inline-flex items-center gap-1 rounded-md border text-xs transition disabled:opacity-60";
+  const base = "inline-flex whitespace-nowrap items-center gap-1 rounded-md border text-xs transition disabled:opacity-60";
   const size = compact ? "px-2 py-1" : "px-2.5 py-1.5";
 
   if (loaded && !username) {

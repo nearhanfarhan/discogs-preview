@@ -93,7 +93,7 @@ export const RecordCard = memo(function RecordCard({ listing: l, release: r }: {
             type="button"
             disabled={!tracks}
             onClick={() => play(l.id)}
-            className="rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs font-medium text-zinc-900 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500"
+            className="whitespace-nowrap rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs font-medium text-zinc-900 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500"
           >
             {tracks ? `▶ Play${tracks > 1 ? ` (${tracks})` : ""}` : r ? "No audio" : "…"}
           </button>
@@ -102,9 +102,9 @@ export const RecordCard = memo(function RecordCard({ listing: l, release: r }: {
             href={l.url}
             target="_blank"
             rel="noreferrer"
-            className="ml-auto text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
+            className="ml-auto whitespace-nowrap text-xs text-zinc-400 underline-offset-2 hover:text-zinc-200 hover:underline"
           >
-            Buy on Discogs ↗
+            Buy<span className="hidden sm:inline"> on Discogs</span> ↗
           </a>
         </div>
       </div>

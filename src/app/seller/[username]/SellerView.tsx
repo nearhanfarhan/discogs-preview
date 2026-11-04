@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FilterPanel } from "@/components/FilterPanel";
 import { RecordCard } from "@/components/RecordCard";
 import { parseFilters, serializeFilters, type Filters } from "@/lib/filters";
@@ -25,6 +25,13 @@ export function SellerView({ username }: { username: string }) {
     [router, pathname],
   );
 
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount =
+    [filters.priceMin, filters.priceMax, filters.yearMin, filters.yearMax, filters.minCondition].filter((v) => v !== undefined).length +
+    filters.formats.length +
+    filters.genres.length +
+    filters.styles.length;
+
   const scan = useSellerScan(username, filters);
   const { results } = scan;
 
@@ -46,12 +53,17 @@ export function SellerView({ username }: { username: string }) {
   return (
     <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
       <div className="lg:sticky lg:top-20 lg:self-start">
-        <details className="group lg:open" open>
-          <summary className="mb-3 cursor-pointer list-none text-sm font-semibold text-zinc-300 lg:hidden">
-            Filters ▾
-          </summary>
+        <button
+          type="button"
+          onClick={() => setShowFilters((v) => !v)}
+          aria-expanded={showFilters}
+          className="mb-1 w-full rounded-md border border-zinc-800 px-3 py-2 text-left text-sm font-medium text-zinc-300 lg:hidden"
+        >
+          Filters{activeFilterCount ? ` (${activeFilterCount})` : ""} {showFilters ? "▴" : "▾"}
+        </button>
+        <div className={`${showFilters ? "mt-3 block" : "hidden"} lg:block`}>
           <FilterPanel filters={filters} onChange={updateFilters} facetReleases={scan.facetReleases} currency={currency} />
-        </details>
+        </div>
       </div>
 
       <main className="min-w-0">
