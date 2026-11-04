@@ -52,7 +52,13 @@ export function SellerView({ username }: { username: string }) {
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[260px_1fr]">
-      <div className="lg:sticky lg:top-20 lg:self-start">
+      {/* On desktop the filters scroll on their own, independent of the results. */}
+      <div
+        className={`lg:sticky lg:top-20 lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 ${
+          isPlaying ? "lg:max-h-[calc(100dvh-6.5rem-var(--player-h))]" : "lg:max-h-[calc(100dvh-6.5rem)]"
+        }`}
+        data-testid="filters-sidebar"
+      >
         <button
           type="button"
           onClick={() => setShowFilters((v) => !v)}
