@@ -65,16 +65,60 @@ src/lib/discogs/                API client, OAuth signing, rate limiter, URL par
 src/lib/filters.ts              filter logic + URL (de)serialisation
 src/lib/useSellerScan.ts        client-side scan/enrich loop
 src/store/                      zustand stores: player queue, account/wantlist
+Dockerfile                      production image (standalone Next.js server, port 8080)
+.github/workflows/deploy.yml    test → build → deploy to Cloud Run on push to main
+deploy/setup-gcp.sh             one-time Google Cloud setup (run in Cloud Shell)
 ```
 
 ## Scripts
 
 ```bash
 npm test            # unit + route tests (Vitest, Discogs mocked)
-npm run test:e2e    # Playwright smoke test against `next start` (run `npm run build` first)
+npm run build && npm start   # production server locally (reads .env / .env.local)
+npm run test:e2e    # Playwright tests against the production server (run `npm run build` first)
 npm run lint
 npm run typecheck
 ```
+
+## Deploying (Google Cloud Run)
+
+Every push to `main` runs the tests, builds the `Dockerfile`, pushes the image to Artifact Registry and deploys it to Cloud Run (`.github/workflows/deploy.yml`). It's served over HTTPS at a `https://discogs-preview-….run.app` address.
+
+### One-time setup
+
+1. **Google Cloud project with billing enabled.** Personal use fits in Cloud Run's free monthly allowance. The service scales to zero when nobody is using it.
+2. **Register a Discogs app for the hosted copy** at <https://www.discogs.com/settings/developers>. Keep the local one for development. Leave the callback URL for now.
+3. **Run the setup script in [Cloud Shell](https://shell.cloud.google.com)**, which runs in the browser and is already signed in as you:
+
+   ```bash
+   git clone https://github.com/nearhanfarhan/discogs-preview.git && cd discogs-preview
+   bash deploy/setup-gcp.sh
+   ```
+
+   It asks for your project ID, the deploy service account's email (`client_email` in `credentials.json`), a region (default `europe-west2`, London) and the Discogs key and secret. Then it:
+   - enables the Cloud Run, Artifact Registry and Secret Manager APIs;
+   - creates an image repository that keeps only the 3 latest images;
+   - stores the Discogs key and secret plus a generated session secret in Secret Manager;
+   - creates a runtime service account that can read only those secrets;
+   - gives your deploy service account just `run.admin`, `artifactregistry.writer`, and permission to act as the runtime account.
+
+   It's safe to re-run, for example to change the Discogs keys.
+4. **In GitHub**, go to the repo → Settings → Secrets and variables → Actions:
+   - add a repository secret `GCP_SA_KEY` containing the full contents of `credentials.json`;
+   - if you chose a region other than `europe-west2`, add a variable `GCP_REGION`.
+5. **Deploy** by merging to `main`, or from Actions → Deploy to Cloud Run → Run workflow. The run summary shows the app URL.
+6. **Finish the Discogs app setup.** Set its callback URL to `<app URL>/api/auth/discogs/callback`.
+
+### Using it on your phone
+
+Open the app URL, then **Share → Add to Home Screen** (iOS) or **⋮ → Install app** (Android). It opens full-screen with its own icon.
+
+### Notes
+
+- **The public URL is worked out from each request.** Cloud Run's `Host` and `X-Forwarded-Proto` headers give the address, so no `APP_URL` is needed. Set `APP_URL` only if you add a custom domain and want to pin it.
+- **The release cache lives in the instance's memory** (`/tmp`), so it empties when the service scales to zero after a quiet spell. To keep it, point `DATABASE_URL` and `DATABASE_AUTH_TOKEN` at a free [Turso](https://turso.tech) database: add both as secrets and to `--set-secrets` in the workflow.
+- **The service runs as a single instance** (`--max-instances 1`), so the Discogs rate limiter and caches stay consistent. That's plenty for personal use.
+- **Logs:** Cloud Console → Cloud Run → `discogs-preview` → Logs.
 
 ## Known limits
 

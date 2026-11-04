@@ -7,9 +7,10 @@ export default defineConfig({
   timeout: 30_000,
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
   webServer: {
-    command: `npx next start -p ${PORT}`,
+    // The same standalone server the Docker image runs (`npm run build` copies static assets in).
+    command: "node .next/standalone/server.js",
     port: PORT,
     reuseExistingServer: !process.env.CI,
-    env: { SESSION_SECRET: "e2e-secret-e2e-secret-e2e-secret-e2e" },
+    env: { PORT: String(PORT), SESSION_SECRET: "e2e-secret-e2e-secret-e2e-secret-e2e" },
   },
 });

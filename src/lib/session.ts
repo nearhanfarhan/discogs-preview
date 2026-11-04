@@ -27,11 +27,4 @@ export async function getSession() {
   return getIronSession<SessionData>(await cookies(), options());
 }
 
-export function appUrl(req: Request): string {
-  return (process.env.APP_URL || new URL(req.url).origin).replace(/\/$/, "");
-}
-
-/** Only allow same-site relative return paths. */
-export function safeReturnTo(value: string | null | undefined): string {
-  return value && value.startsWith("/") && !value.startsWith("//") ? value : "/";
-}
+export { appUrl, safeReturnTo } from "./url";

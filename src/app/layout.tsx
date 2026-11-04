@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { AccountMenu } from "@/components/AccountMenu";
 import { PlayerBar } from "@/components/PlayerBar";
@@ -8,6 +8,13 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Discogs Preview",
   description: "Filter a Discogs seller's inventory and listen through it like a playlist.",
+  appleWebApp: { capable: true, title: "Crate Dig", statusBarStyle: "black" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#09090b",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
