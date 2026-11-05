@@ -200,14 +200,18 @@ test("filter sidebar and results scroll independently on desktop", async ({ page
   expect(clearBox.y + clearBox.height).toBeLessThanOrEqual(barTop);
 });
 
-test("genre filter can match any or all selected genres", async ({ page }) => {
+test("style filter can match any or all selected styles", async ({ page }) => {
   await mockApi(page, { username: null });
   await page.route("**/api/seller/*/inventory*", (r) =>
     r.fulfill({
-      json: { page: 1, pages: 1, items: 3, listings: [listing(1, 5, "Electro"), listing(2, 6, "Rocker"), listing(4, 7, "Electro Rock")] },
+      json: { page: 1, pages: 1, items: 3, listings: [listing(1, 5, "Techno One"), listing(2, 6, "House One"), listing(4, 7, "Tech House")] },
     }),
   );
-  const tagged = [release(1, ["Electronic"], ["a"]), release(2, ["Rock"], ["b"]), release(4, ["Electronic", "Rock"], ["c"])];
+  const tagged = [
+    { ...release(1, ["Electronic"], ["a"]), styles: ["Techno"] },
+    { ...release(2, ["Electronic"], ["b"]), styles: ["House"] },
+    { ...release(4, ["Electronic"], ["c"]), styles: ["Techno", "House"] },
+  ];
   await page.route("**/api/releases", (r) => {
     const ids: number[] = r.request().postDataJSON().ids;
     r.fulfill({ json: { releases: tagged.filter((x) => ids.includes(x.id)), failed: [], retry: [] } });
@@ -217,17 +221,23 @@ test("genre filter can match any or all selected genres", async ({ page }) => {
   const cards = page.getByTestId("record-card");
   await expect(cards).toHaveCount(3);
   const matchAll = page.getByRole("button", { name: "Match all" });
-  await page.getByRole("button", { name: /^Electronic/ }).click();
-  await expect(matchAll).toHaveCount(0); // only shown for 2+ genres
-  await page.getByRole("button", { name: /^Rock/ }).click();
+  await page.getByRole("button", { name: /^Techno/ }).click();
+  await expect(matchAll).toHaveCount(0); // only shown for 2+ styles
+  await page.getByRole("button", { name: /^House/ }).click();
   await expect(cards).toHaveCount(3); // any (OR)
 
   await matchAll.click();
   await expect(cards).toHaveCount(1); // all (AND)
-  await expect(cards.first()).toContainText("Electro Rock");
-  await expect(page).toHaveURL(/gmode=all/);
+  await expect(cards.first()).toContainText("Tech House");
+  await expect(page).toHaveURL(/smode=all/);
 
   await page.getByRole("button", { name: "Match any" }).click();
   await expect(cards).toHaveCount(3);
-  await expect(page).not.toHaveURL(/gmode/);
+  await expect(page).not.toHaveURL(/smode/);
+
+  // Genres have no toggle, even with two selected.
+  await page.getByRole("button", { name: /^Electronic/ }).click();
+  await page.getByRole("button", { name: /^Rock/ }).click();
+  await expect(page.getByRole("group", { name: "How to combine styles" })).toHaveCount(1);
+  await expect(page.getByRole("group")).toHaveCount(1);
 });

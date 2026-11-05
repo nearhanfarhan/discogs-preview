@@ -35,7 +35,7 @@ export const CONDITIONS = [
 
 export type ConditionCode = (typeof CONDITIONS)[number]["code"];
 
-/** How several selected genres combine: "any" = OR, "all" = AND. */
+/** How several selected styles combine: "any" = OR, "all" = AND. */
 export type MatchMode = "any" | "all";
 
 export interface Filters {
@@ -46,8 +46,8 @@ export interface Filters {
   formats: string[];
   minCondition?: ConditionCode;
   genres: string[];
-  genreMode: MatchMode;
   styles: string[];
+  styleMode: MatchMode;
   audioOnly: boolean;
   sort: InventorySort;
   order: SortOrder;
@@ -56,8 +56,8 @@ export interface Filters {
 export const DEFAULT_FILTERS: Filters = {
   formats: [],
   genres: [],
-  genreMode: "any",
   styles: [],
+  styleMode: "any",
   audioOnly: true,
   sort: "listed",
   order: "desc",
@@ -107,11 +107,11 @@ export function matchesListing(l: Listing, f: Filters): boolean {
 /** Filters that need full release details (genre, style, audio). */
 export function matchesRelease(r: Release, f: Filters): boolean {
   if (f.audioOnly && r.videos.length === 0) return false;
-  if (f.genres.length) {
-    const has = (g: string) => r.genres.includes(g);
-    if (!(f.genreMode === "all" ? f.genres.every(has) : f.genres.some(has))) return false;
+  if (f.genres.length && !f.genres.some((g) => r.genres.includes(g))) return false;
+  if (f.styles.length) {
+    const has = (s: string) => r.styles.includes(s);
+    if (!(f.styleMode === "all" ? f.styles.every(has) : f.styles.some(has))) return false;
   }
-  if (f.styles.length && !f.styles.some((s) => r.styles.includes(s))) return false;
   return true;
 }
 
@@ -141,8 +141,8 @@ export function parseFilters(sp: URLSearchParams): Filters {
     formats: list(sp.get("fmt")),
     minCondition: cond && CONDITIONS.some((c) => c.code === cond) ? cond : undefined,
     genres: list(sp.get("genre")),
-    genreMode: sp.get("gmode") === "all" ? "all" : "any",
     styles: list(sp.get("style")),
+    styleMode: sp.get("smode") === "all" ? "all" : "any",
     audioOnly: sp.get("audio") !== "0",
     sort: sort && SORTS.includes(sort) ? sort : DEFAULT_FILTERS.sort,
     order: sp.get("order") === "asc" ? "asc" : "desc",
@@ -161,8 +161,8 @@ export function serializeFilters(f: Filters): URLSearchParams {
   if (f.formats.length) sp.set("fmt", f.formats.join("|"));
   set("cond", f.minCondition);
   if (f.genres.length) sp.set("genre", f.genres.join("|"));
-  if (f.genreMode === "all") sp.set("gmode", "all");
   if (f.styles.length) sp.set("style", f.styles.join("|"));
+  if (f.styleMode === "all") sp.set("smode", "all");
   if (!f.audioOnly) sp.set("audio", "0");
   if (f.sort !== DEFAULT_FILTERS.sort) sp.set("sort", f.sort);
   if (f.order !== DEFAULT_FILTERS.order) sp.set("order", f.order);
