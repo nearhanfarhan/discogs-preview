@@ -199,3 +199,35 @@ test("filter sidebar and results scroll independently on desktop", async ({ page
   const barTop = await page.evaluate(() => window.innerHeight - parseFloat(getComputedStyle(document.documentElement).fontSize) * 4.5);
   expect(clearBox.y + clearBox.height).toBeLessThanOrEqual(barTop);
 });
+
+test("genre filter can match any or all selected genres", async ({ page }) => {
+  await mockApi(page, { username: null });
+  await page.route("**/api/seller/*/inventory*", (r) =>
+    r.fulfill({
+      json: { page: 1, pages: 1, items: 3, listings: [listing(1, 5, "Electro"), listing(2, 6, "Rocker"), listing(4, 7, "Electro Rock")] },
+    }),
+  );
+  const tagged = [release(1, ["Electronic"], ["a"]), release(2, ["Rock"], ["b"]), release(4, ["Electronic", "Rock"], ["c"])];
+  await page.route("**/api/releases", (r) => {
+    const ids: number[] = r.request().postDataJSON().ids;
+    r.fulfill({ json: { releases: tagged.filter((x) => ids.includes(x.id)), failed: [], retry: [] } });
+  });
+
+  await page.goto("/seller/testshop");
+  const cards = page.getByTestId("record-card");
+  await expect(cards).toHaveCount(3);
+  const matchAll = page.getByRole("button", { name: "Match all" });
+  await page.getByRole("button", { name: /^Electronic/ }).click();
+  await expect(matchAll).toHaveCount(0); // only shown for 2+ genres
+  await page.getByRole("button", { name: /^Rock/ }).click();
+  await expect(cards).toHaveCount(3); // any (OR)
+
+  await matchAll.click();
+  await expect(cards).toHaveCount(1); // all (AND)
+  await expect(cards.first()).toContainText("Electro Rock");
+  await expect(page).toHaveURL(/gmode=all/);
+
+  await page.getByRole("button", { name: "Match any" }).click();
+  await expect(cards).toHaveCount(3);
+  await expect(page).not.toHaveURL(/gmode/);
+});

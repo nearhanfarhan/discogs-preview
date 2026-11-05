@@ -103,6 +103,24 @@ describe("matchesRelease", () => {
     expect(matchesRelease(release(), f({ genres: ["Electronic"], styles: ["House"] }))).toBe(false);
   });
 
+  it("matches any selected genre by default, or every one in all-mode", () => {
+    const both = release({ genres: ["Electronic", "Funk / Soul"] });
+    const one = release({ genres: ["Electronic"] });
+    const genres = ["Electronic", "Funk / Soul"];
+    expect(matchesRelease(both, f({ genres }))).toBe(true);
+    expect(matchesRelease(one, f({ genres }))).toBe(true);
+    expect(matchesRelease(both, f({ genres, genreMode: "all" }))).toBe(true);
+    expect(matchesRelease(one, f({ genres, genreMode: "all" }))).toBe(false);
+  });
+
+  it("treats a single genre the same in both modes", () => {
+    const r = release({ genres: ["Electronic", "Pop"] });
+    for (const genreMode of ["any", "all"] as const) {
+      expect(matchesRelease(r, f({ genres: ["Pop"], genreMode }))).toBe(true);
+      expect(matchesRelease(r, f({ genres: ["Rock"], genreMode }))).toBe(false);
+    }
+  });
+
   it("hides releases without audio only when audioOnly is on", () => {
     expect(matchesRelease(release({ videos: [] }), f({ audioOnly: true }))).toBe(false);
     expect(matchesRelease(release({ videos: [] }), f({ audioOnly: false }))).toBe(true);
@@ -118,6 +136,7 @@ describe("URL round-trip", () => {
       formats: ["LP", '12"'],
       minCondition: "VG+",
       genres: ["Funk / Soul", "Folk, World, & Country"],
+      genreMode: "all",
       styles: ["Disco"],
       audioOnly: false,
       sort: "price",
@@ -128,6 +147,6 @@ describe("URL round-trip", () => {
 
   it("keeps the default URL empty and ignores junk", () => {
     expect(serializeFilters(DEFAULT_FILTERS).toString()).toBe("");
-    expect(parseFilters(new URLSearchParams("pmin=abc&sort=bogus&cond=XX"))).toEqual(DEFAULT_FILTERS);
+    expect(parseFilters(new URLSearchParams("pmin=abc&sort=bogus&cond=XX&gmode=nope"))).toEqual(DEFAULT_FILTERS);
   });
 });

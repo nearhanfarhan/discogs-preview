@@ -94,6 +94,33 @@ export function FilterPanel({ filters, onChange, facetReleases, currency }: Prop
           selected={filters.genres}
           onToggle={(v) => set({ genres: toggle(filters.genres, v) })}
         />
+        {filters.genres.length >= 2 && (
+          <div className="mt-2">
+            <div className="inline-flex rounded-full border border-zinc-700 p-0.5" role="group" aria-label="How to combine genres">
+              {(
+                [
+                  ["any", "Match any"],
+                  ["all", "Match all"],
+                ] as const
+              ).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  aria-pressed={filters.genreMode === mode}
+                  onClick={() => set({ genreMode: mode })}
+                  className={`rounded-full px-2.5 py-0.5 text-xs ${
+                    filters.genreMode === mode ? "bg-amber-400/15 text-amber-200" : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-zinc-500">
+              {filters.genreMode === "all" ? "Records tagged with every selected genre." : "Records tagged with at least one selected genre."}
+            </p>
+          </div>
+        )}
       </Section>
 
       <Section title="Style">
