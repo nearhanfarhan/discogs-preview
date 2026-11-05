@@ -98,11 +98,40 @@ export function FilterPanel({ filters, onChange, facetReleases, currency }: Prop
 
       <Section title="Style">
         {styles.length ? (
-          <Chips
-            options={styles.map((s) => ({ value: s, count: styleCounts.get(s) }))}
-            selected={filters.styles}
-            onToggle={(v) => set({ styles: toggle(filters.styles, v) })}
-          />
+          <>
+            <Chips
+              options={styles.map((s) => ({ value: s, count: styleCounts.get(s) }))}
+              selected={filters.styles}
+              onToggle={(v) => set({ styles: toggle(filters.styles, v) })}
+            />
+            {filters.styles.length >= 2 && (
+              <div className="mt-2">
+                <div className="inline-flex rounded-full border border-zinc-700 p-0.5" role="group" aria-label="How to combine styles">
+                  {(
+                    [
+                      ["any", "Match any"],
+                      ["all", "Match all"],
+                    ] as const
+                  ).map(([mode, label]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={filters.styleMode === mode}
+                      onClick={() => set({ styleMode: mode })}
+                      className={`rounded-full px-2.5 py-0.5 text-xs ${
+                        filters.styleMode === mode ? "bg-amber-400/15 text-amber-200" : "text-zinc-400 hover:text-zinc-200"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  {filters.styleMode === "all" ? "Records tagged with every selected style." : "Records tagged with at least one selected style."}
+                </p>
+              </div>
+            )}
+          </>
         ) : (
           <p className="text-xs text-zinc-500">Styles appear as records load.</p>
         )}

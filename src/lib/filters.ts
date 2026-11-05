@@ -35,6 +35,9 @@ export const CONDITIONS = [
 
 export type ConditionCode = (typeof CONDITIONS)[number]["code"];
 
+/** How several selected styles combine: "any" = OR, "all" = AND. */
+export type MatchMode = "any" | "all";
+
 export interface Filters {
   priceMin?: number;
   priceMax?: number;
@@ -44,6 +47,7 @@ export interface Filters {
   minCondition?: ConditionCode;
   genres: string[];
   styles: string[];
+  styleMode: MatchMode;
   audioOnly: boolean;
   sort: InventorySort;
   order: SortOrder;
@@ -53,6 +57,7 @@ export const DEFAULT_FILTERS: Filters = {
   formats: [],
   genres: [],
   styles: [],
+  styleMode: "any",
   audioOnly: true,
   sort: "listed",
   order: "desc",
@@ -103,7 +108,10 @@ export function matchesListing(l: Listing, f: Filters): boolean {
 export function matchesRelease(r: Release, f: Filters): boolean {
   if (f.audioOnly && r.videos.length === 0) return false;
   if (f.genres.length && !f.genres.some((g) => r.genres.includes(g))) return false;
-  if (f.styles.length && !f.styles.some((s) => r.styles.includes(s))) return false;
+  if (f.styles.length) {
+    const has = (s: string) => r.styles.includes(s);
+    if (!(f.styleMode === "all" ? f.styles.every(has) : f.styles.some(has))) return false;
+  }
   return true;
 }
 
@@ -134,6 +142,7 @@ export function parseFilters(sp: URLSearchParams): Filters {
     minCondition: cond && CONDITIONS.some((c) => c.code === cond) ? cond : undefined,
     genres: list(sp.get("genre")),
     styles: list(sp.get("style")),
+    styleMode: sp.get("smode") === "all" ? "all" : "any",
     audioOnly: sp.get("audio") !== "0",
     sort: sort && SORTS.includes(sort) ? sort : DEFAULT_FILTERS.sort,
     order: sp.get("order") === "asc" ? "asc" : "desc",
@@ -153,6 +162,7 @@ export function serializeFilters(f: Filters): URLSearchParams {
   set("cond", f.minCondition);
   if (f.genres.length) sp.set("genre", f.genres.join("|"));
   if (f.styles.length) sp.set("style", f.styles.join("|"));
+  if (f.styleMode === "all") sp.set("smode", "all");
   if (!f.audioOnly) sp.set("audio", "0");
   if (f.sort !== DEFAULT_FILTERS.sort) sp.set("sort", f.sort);
   if (f.order !== DEFAULT_FILTERS.order) sp.set("order", f.order);

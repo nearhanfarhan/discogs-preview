@@ -103,6 +103,29 @@ describe("matchesRelease", () => {
     expect(matchesRelease(release(), f({ genres: ["Electronic"], styles: ["House"] }))).toBe(false);
   });
 
+  it("matches any selected style by default, or every one in all-mode", () => {
+    const both = release({ styles: ["Techno", "Ambient"] });
+    const one = release({ styles: ["Techno"] });
+    const styles = ["Techno", "Ambient"];
+    expect(matchesRelease(both, f({ styles }))).toBe(true);
+    expect(matchesRelease(one, f({ styles }))).toBe(true);
+    expect(matchesRelease(both, f({ styles, styleMode: "all" }))).toBe(true);
+    expect(matchesRelease(one, f({ styles, styleMode: "all" }))).toBe(false);
+  });
+
+  it("treats a single style the same in both modes", () => {
+    const r = release({ styles: ["Techno", "House"] });
+    for (const styleMode of ["any", "all"] as const) {
+      expect(matchesRelease(r, f({ styles: ["House"], styleMode }))).toBe(true);
+      expect(matchesRelease(r, f({ styles: ["Disco"], styleMode }))).toBe(false);
+    }
+  });
+
+  it("keeps genres as any-of", () => {
+    const r = release({ genres: ["Electronic"] });
+    expect(matchesRelease(r, f({ genres: ["Electronic", "Rock"] }))).toBe(true);
+  });
+
   it("hides releases without audio only when audioOnly is on", () => {
     expect(matchesRelease(release({ videos: [] }), f({ audioOnly: true }))).toBe(false);
     expect(matchesRelease(release({ videos: [] }), f({ audioOnly: false }))).toBe(true);
@@ -118,7 +141,8 @@ describe("URL round-trip", () => {
       formats: ["LP", '12"'],
       minCondition: "VG+",
       genres: ["Funk / Soul", "Folk, World, & Country"],
-      styles: ["Disco"],
+      styles: ["Disco", "Boogie"],
+      styleMode: "all",
       audioOnly: false,
       sort: "price",
       order: "asc",
@@ -128,6 +152,6 @@ describe("URL round-trip", () => {
 
   it("keeps the default URL empty and ignores junk", () => {
     expect(serializeFilters(DEFAULT_FILTERS).toString()).toBe("");
-    expect(parseFilters(new URLSearchParams("pmin=abc&sort=bogus&cond=XX"))).toEqual(DEFAULT_FILTERS);
+    expect(parseFilters(new URLSearchParams("pmin=abc&sort=bogus&cond=XX&smode=nope"))).toEqual(DEFAULT_FILTERS);
   });
 });
