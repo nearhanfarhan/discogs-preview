@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.github
+data
+.env
+.env.*
+!.env.example
+test-results
+playwright-report
+e2e
+tests
+*.tsbuildinfo
+Dockerfile
+.dockerignore

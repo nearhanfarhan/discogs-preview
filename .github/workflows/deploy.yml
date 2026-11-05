@@ -1,0 +1,135 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never run two deploys at once; let a running one finish.
+concurrency:
+  group: deploy-cloud-run
+  cancel-in-progress: false
+
+env:
+  SERVICE: discogs-preview
+  REPOSITORY: discogs-preview
+  REGION: ${{ vars.GCP_REGION || 'europe-west2' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check the repository secrets are set
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          DISCOGS_CONSUMER_KEY: ${{ secrets.DISCOGS_CONSUMER_KEY }}
+          DISCOGS_CONSUMER_SECRET: ${{ secrets.DISCOGS_CONSUMER_SECRET }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+        run: |
+          ok=1
+          for name in GCP_SA_KEY DISCOGS_CONSUMER_KEY DISCOGS_CONSUMER_SECRET SESSION_SECRET; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing repository secret $name (Settings → Secrets and variables → Actions). See README → Deploying."
+              ok=0
+            fi
+          done
+          if [ -n "$SESSION_SECRET" ] && [ ${#SESSION_SECRET} -lt 32 ]; then
+            echo "::error::SESSION_SECRET must be at least 32 characters."
+            ok=0
+          fi
+          [ "$ok" = 1 ]
+
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Read the project and account from the key
+        run: |
+          echo "PROJECT_ID=$(jq -r .project_id "$GOOGLE_APPLICATION_CREDENTIALS")" >> "$GITHUB_ENV"
+          echo "SA_EMAIL=$(jq -r .client_email "$GOOGLE_APPLICATION_CREDENTIALS")" >> "$GITHUB_ENV"
+
+      - name: Check Google Cloud access
+        env:
+          SUMMARY: ${{ github.step_summary }}
+        run: bash deploy/preflight.sh
+
+      - name: Build and push the image
+        run: |
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/app:$GITHUB_SHA"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Deploy
+        env:
+          DISCOGS_CONSUMER_KEY: ${{ secrets.DISCOGS_CONSUMER_KEY }}
+          DISCOGS_CONSUMER_SECRET: ${{ secrets.DISCOGS_CONSUMER_SECRET }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+        run: |
+          # App secrets go to Cloud Run as environment variables. JSON is valid YAML, and jq quotes safely.
+          ENV_FILE="$RUNNER_TEMP/env.yaml"
+          jq -n '{DISCOGS_CONSUMER_KEY: env.DISCOGS_CONSUMER_KEY, DISCOGS_CONSUMER_SECRET: env.DISCOGS_CONSUMER_SECRET, SESSION_SECRET: env.SESSION_SECRET}' > "$ENV_FILE"
+          # One instance keeps the in-memory rate limiter and caches consistent; scales to zero when idle.
+          gcloud run deploy "$SERVICE" \
+            --project "$PROJECT_ID" \
+            --image "$IMAGE" \
+            --region "$REGION" \
+            --service-account "$SA_EMAIL" \
+            --allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 1 \
+            --memory 512Mi \
+            --cpu 1 \
+            --cpu-boost \
+            --timeout 300 \
+            --env-vars-file "$ENV_FILE" \
+            --quiet
+          rm -f "$ENV_FILE"
+
+      - name: Summary
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" --project "$PROJECT_ID" --region "$REGION" --format 'value(status.url)')
+          {
+            echo "### Deployed :rocket:"
+            echo ""
+            echo "App: $URL"
+            echo ""
+            echo "Discogs callback URL: \`$URL/api/auth/discogs/callback\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployed to $URL"
+
+      - name: Explain a failed deploy
+        if: failure()
+        run: |
+          {
+            echo "### Deploy didn't finish"
+            echo ""
+            echo "Check the failed step's log above. Common causes when the project belongs to someone else:"
+            echo ""
+            echo "- **Billing isn't enabled** on the project (errors mention billing or \`FAILED_PRECONDITION\`). Only the project owner can turn it on."
+            echo "- **A permission is missing** (errors mention \`PERMISSION_DENIED\` or \`403\`). The access check above lists what to ask the owner for."
+            echo "- **A repository secret is missing or wrong**: re-paste the whole \`credentials.json\` into \`GCP_SA_KEY\`."
+          } >> "$GITHUB_STEP_SUMMARY"

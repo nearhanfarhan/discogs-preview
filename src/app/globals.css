@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root {
+  --player-h: 4.5rem;
+  color-scheme: dark;
+}
+
+body {
+  background: #09090b;
+  color: #e4e4e7;
+}
